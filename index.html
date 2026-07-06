@@ -954,19 +954,12 @@
     };
 
     try {
-      console.log('Sende Anmeldung:', payload);
-      const response = await fetch(POWER_AUTOMATE_URL, {
+      await fetch(POWER_AUTOMATE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       });
-      const result = await response.json();
-      console.log('Antwort vom Sheet:', result);
-      if (result.status !== 'ok') {
-        console.error('Speichern fehlgeschlagen:', result.message);
-      }
     } catch (err) {
-      console.error('Netzwerkfehler beim Senden:', err);
       // Offline-Fallback: lokal speichern
       try {
         const queue = JSON.parse(localStorage.getItem('schwimmkurse_offline_queue') || '[]');
@@ -1016,44 +1009,6 @@
   // ==== INIT ====
   renderCourses();
   renderDays();
-
-  // ==== LIVE-ZÄHLER ====
-  const POLL_INTERVAL_MS = 15000;
-  const MAX_FAILURES = 3;
-  let pollFailureCount = 0;
-  let pollTimerId = null;
-
-  async function fetchCounts() {
-    try {
-      const url = POWER_AUTOMATE_URL + '?t=' + Date.now();
-      const response = await fetch(url, { method: 'GET', cache: 'no-store' });
-      if (!response.ok) {
-        console.error('Zähler-Abfrage fehlgeschlagen, Status:', response.status);
-        registerPollFailure();
-        return;
-      }
-      const freshCounts = await response.json();
-      console.log('Zähler vom Sheet erhalten:', freshCounts);
-      pollFailureCount = 0; // Erfolg: Zähler zurücksetzen
-      let changed = false;
-      COURSES.forEach(course => {
-        const newCount = freshCounts[course];
-        if (typeof newCount === 'number' && newCount !== counts[course]) {
-          counts[course] = newCount;
-          changed = true;
-        }
-      });
-      if (changed) {
-        renderCourses();
-      }
-    } catch (err) {
-      console.error('Zähler-Abfrage Fehler:', err);
-      registerPollFailure();
-    }
-  }
-
-  fetchCounts();
-  pollTimerId = setInterval(fetchCounts, POLL_INTERVAL_MS);
 </script>
 
 </body>
