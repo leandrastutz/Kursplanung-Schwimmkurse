@@ -189,6 +189,24 @@
     header { padding: 24px 20px; }
   }
 
+  @media (max-width: 400px) {
+    body { padding: 6px; }
+    .content { padding: 16px 12px; }
+    header { padding: 18px 12px; }
+    header h1 { font-size: 1.5rem; }
+    .step-indicator { padding: 14px 10px 0 10px; }
+    .progress-bar-track { margin: 14px 10px 0 10px; }
+    .course-card { padding: 12px 12px; }
+    .course-name { font-size: 0.92rem; }
+    .counter { font-size: 0.78rem; padding: 4px 8px; }
+    .course-left { gap: 8px; }
+    .course-grid { gap: 10px; }
+    .btn-row { gap: 8px; }
+    .btn-row button { padding: 12px 14px; font-size: 0.9rem; }
+    .radio-group { gap: 8px; }
+    .radio-option { padding: 8px 10px; }
+  }
+
   h2.section-title {
     font-size: 1.3rem;
     margin-bottom: 20px;
@@ -399,24 +417,68 @@
 
   /* Days */
   .day-card {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr 1fr;
-    gap: 12px;
-    align-items: center;
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 14px 16px;
     margin-bottom: 10px;
+  }
+
+  .day-main-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 12px;
+    align-items: center;
     min-width: 0;
   }
 
-  .day-card > * {
+  .day-main-row > * {
     min-width: 0;
+  }
+
+  .time-slot-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 12px;
+    align-items: end;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+    min-width: 0;
+  }
+
+  .time-slot-row > * {
+    min-width: 0;
+  }
+
+  .remove-time-btn {
+    background: none;
+    border: none;
+    color: var(--error);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px;
+    line-height: 1;
+  }
+
+  .add-time-btn {
+    display: block;
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-top: 10px;
+    padding: 4px 0;
   }
 
   @media (max-width: 640px) {
-    .day-card {
+    .day-main-row {
       grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .time-slot-row {
+      grid-template-columns: 1fr 1fr auto;
       gap: 8px;
     }
   }
@@ -653,7 +715,7 @@
         </div>
 
         <div class="field" id="roleField">
-          <label>Rolle bei Schwimmschule *</label>
+          <label>Meine Rolle *</label>
           <div class="radio-group">
             <label class="radio-option" data-role="Hauptleitung">
               <input type="radio" name="role" value="Hauptleitung"> Hauptleitung
@@ -663,6 +725,10 @@
             </label>
           </div>
           <div class="error-msg" id="roleError">⚠ Bitte wählen Sie Hauptleitung oder Hilfsleitung.</div>
+        </div>
+
+        <div class="info-box hidden" id="multiCourseHint">
+          ℹ️ Du hast mehrere Kurse ausgewählt. Falls die Zeiten je nach Kurs unterschiedlich sind, gib das bitte kurz im Feld "Bemerkung" unten an (z. B. welcher Tag/Zeit zu welchem Kurs gehört).
         </div>
 
         <div class="field">
@@ -742,7 +808,7 @@
     remarks: ''
   };
 
-  DAYS.forEach(d => state.days[d] = { checked: false, from: '', to: '' });
+  DAYS.forEach(d => state.days[d] = { checked: false, times: [{ from: '', to: '' }] });
 
   let currentStep = 1;
 
@@ -800,20 +866,47 @@
       const dayState = state.days[day];
       const card = document.createElement('div');
       card.className = 'day-card';
-      card.innerHTML = `
-        <label class="day-checkbox">
-          <input type="checkbox" ${dayState.checked ? 'checked' : ''} onchange="toggleDay('${day}', this.checked)">
-          ${day}
-        </label>
-        <div class="time-group">
-          <label class="time-label">Von</label>
-          <input type="time" value="${dayState.from}" ${dayState.checked ? '' : 'disabled'} onchange="setTime('${day}', 'from', this.value)">
-        </div>
-        <div class="time-group">
-          <label class="time-label">Bis</label>
-          <input type="time" value="${dayState.to}" ${dayState.checked ? '' : 'disabled'} onchange="setTime('${day}', 'to', this.value)">
+
+      const firstSlot = dayState.times[0];
+      let html = `
+        <div class="day-main-row">
+          <label class="day-checkbox">
+            <input type="checkbox" ${dayState.checked ? 'checked' : ''} onchange="toggleDay('${day}', this.checked)">
+            ${day}
+          </label>
+          <div class="time-group">
+            <label class="time-label">Von</label>
+            <input type="time" value="${firstSlot.from}" ${dayState.checked ? '' : 'disabled'} onchange="setTime('${day}', 0, 'from', this.value)">
+          </div>
+          <div class="time-group">
+            <label class="time-label">Bis</label>
+            <input type="time" value="${firstSlot.to}" ${dayState.checked ? '' : 'disabled'} onchange="setTime('${day}', 0, 'to', this.value)">
+          </div>
         </div>
       `;
+
+      for (let i = 1; i < dayState.times.length; i++) {
+        const slot = dayState.times[i];
+        html += `
+          <div class="time-slot-row">
+            <div class="time-group">
+              <label class="time-label">Von</label>
+              <input type="time" value="${slot.from}" onchange="setTime('${day}', ${i}, 'from', this.value)">
+            </div>
+            <div class="time-group">
+              <label class="time-label">Bis</label>
+              <input type="time" value="${slot.to}" onchange="setTime('${day}', ${i}, 'to', this.value)">
+            </div>
+            <button type="button" class="remove-time-btn" onclick="removeTimeSlot('${day}', ${i})" title="Zeit entfernen">✕</button>
+          </div>
+        `;
+      }
+
+      if (dayState.checked) {
+        html += `<button type="button" class="add-time-btn" onclick="addTimeSlot('${day}')">+ weitere Zeit an diesem Tag</button>`;
+      }
+
+      card.innerHTML = html;
       container.appendChild(card);
     });
   }
@@ -821,14 +914,25 @@
   function toggleDay(day, checked) {
     state.days[day].checked = checked;
     if (!checked) {
-      state.days[day].from = '';
-      state.days[day].to = '';
+      state.days[day].times = [{ from: '', to: '' }];
     }
     renderDays();
   }
 
-  function setTime(day, field, value) {
-    state.days[day][field] = value;
+  function setTime(day, index, field, value) {
+    state.days[day].times[index][field] = value;
+  }
+
+  function addTimeSlot(day) {
+    state.days[day].times.push({ from: '', to: '' });
+    renderDays();
+  }
+
+  function removeTimeSlot(day, index) {
+    if (state.days[day].times.length > 1) {
+      state.days[day].times.splice(index, 1);
+      renderDays();
+    }
   }
 
   // ==== ROLE ====
@@ -851,6 +955,10 @@
         return;
       }
       document.getElementById('step1Error').classList.remove('show');
+    }
+
+    if (step === 2) {
+      document.getElementById('multiCourseHint').classList.toggle('hidden', state.selectedCourses.length <= 1);
     }
 
     currentStep = step;
@@ -915,7 +1023,7 @@
       errorMessages.push('⚠ Bitte wählen Sie mindestens einen Tag aus.');
       valid = false;
     } else {
-      const incompleteDays = checkedDays.filter(d => !state.days[d].from || !state.days[d].to);
+      const incompleteDays = checkedDays.filter(d => state.days[d].times.some(t => !t.from || !t.to));
       if (incompleteDays.length > 0) {
         document.getElementById('timesError').classList.add('show');
         incompleteDays.forEach(d => {
@@ -939,9 +1047,10 @@
     const box = document.getElementById('summaryBox');
     const checkedDays = DAYS.filter(d => state.days[d].checked);
 
-    let daysHtml = checkedDays.map(d =>
-      `<div class="line">${d}: ${state.days[d].from} - ${state.days[d].to}</div>`
-    ).join('');
+    let daysHtml = checkedDays.map(d => {
+      const timesStr = state.days[d].times.map(t => `${t.from} - ${t.to}`).join(', ');
+      return `<div class="line">${d}: ${timesStr}</div>`;
+    }).join('');
 
     box.innerHTML = `
       <div class="summary-block">
@@ -982,7 +1091,7 @@
     const times = {};
     DAYS.forEach(d => {
       const dayState = state.days[d];
-      times[d] = dayState.checked ? { from: dayState.from, to: dayState.to } : null;
+      times[d] = dayState.checked ? dayState.times.map(t => ({ from: t.from, to: t.to })) : null;
     });
 
     const now = new Date();
@@ -1035,7 +1144,7 @@
       days: {},
       remarks: ''
     };
-    DAYS.forEach(d => state.days[d] = { checked: false, from: '', to: '' });
+    DAYS.forEach(d => state.days[d] = { checked: false, times: [{ from: '', to: '' }] });
 
     document.getElementById('nameInput').value = '';
     document.getElementById('remarksInput').value = '';
